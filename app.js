@@ -7,17 +7,21 @@ const app = express()
 
 
 const VERIFY_TOKEN = 'chatbot000111'
-const PAGE_ACCESS_TOKEN = ""
-app.set('port', (3000))
+const PAGE_ACCESS_TOKEN = [
+    "",
+    ""
+]
 
+app.set('port', (3002))
 
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
-const handleEvents = (events) => {
+
+const handleEvents = (events, page_id) => {
     const text = get(events, ['messaging', 0, 'message', 'text']);
     const sender = get(events, ['messaging', 0, 'sender', 'id']);
-
+    console.log(page_id)
     if (!sender || !text) {
         return;
     }
@@ -73,19 +77,18 @@ const handleEvents = (events) => {
         });
 
     } else {
-        // ถ้าไม่ใช่ yes ก็ตอบข้อความเดิมกลับ
         const requestBody = {
             "messaging_type": "RESPONSE",
             "recipient": { id: sender },
             "message": { text }
         };
-
+        access_token_test = page_id === "642155692311378" ? PAGE_ACCESS_TOKEN[0] : PAGE_ACCESS_TOKEN[1]
         const config = {
             method: 'post',
             uri: "https://graph.facebook.com/v6.0/me/messages",
             json: requestBody,
             qs: {
-                access_token: `${PAGE_ACCESS_TOKEN}`,
+                access_token: `${access_token_test}`,
             },
         };
 
@@ -99,11 +102,27 @@ const handleEvents = (events) => {
     }
 }
 
+app.get("/webhook", async (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+        console.log('Webhook verified!');
+        res.status(200).send(challenge);
+    } else {
+        console.log('Webhook verification failed!');
+        res.sendStatus(403);
+    }
+})
+
 app.post('/webhook', async (req, res) => {
     const { body } = req;
+    console.log("body => ", body)
+    console.log("body[0] => ", body.entry[0].id)
     if (body.object === 'page') {
         const events = body && body.entry && body.entry[0]
-        await handleEvents(events)
+        await handleEvents(events, body.entry[0].id)
     } else {
         res.sendStatus(404);
     }
@@ -112,5 +131,6 @@ app.post('/webhook', async (req, res) => {
 
 
 app.listen(app.get('port'), function () {
-    console.log("service listen at http://localhost:3000")
+    console.log("service listen at http://localhost:3002")
 })
+
