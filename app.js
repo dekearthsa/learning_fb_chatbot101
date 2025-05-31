@@ -27,15 +27,9 @@ const dynamoScanID = async (page_id) => {
 
 }
 
-const handleEvents = async (events, accessToken) => {
-    const text = get(events, ['messaging', 0, 'message', 'text']);
-    const sender = get(events, ['messaging', 0, 'sender', 'id']);
-    if (!sender || !text) return;
-
-    let messagePayload;
-
-    if (text.toLowerCase() === 'yes') {
-        messagePayload = {
+const messageGenerate = async (messageType) => {
+    if (messageType.toLowerCase() === 'yes') {
+        return {
             messaging_type: "RESPONSE",
             recipient: { id: sender },
             message: {
@@ -58,12 +52,20 @@ const handleEvents = async (events, accessToken) => {
             }
         };
     } else {
-        messagePayload = {
+        return {
             messaging_type: "RESPONSE",
             recipient: { id: sender },
             message: { text }
         };
     }
+}
+
+const handleEvents = async (events, accessToken) => {
+    const text = get(events, ['messaging', 0, 'message', 'text']);
+    const sender = get(events, ['messaging', 0, 'sender', 'id']);
+    if (!sender || !text) return;
+
+    const messagePayload = messageGenerate(text);
 
     await fetch("https://graph.facebook.com/v6.0/me/messages", {
         method: 'POST',
