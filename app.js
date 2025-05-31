@@ -1,15 +1,33 @@
 import { get } from 'lodash';
 import fetch from 'node-fetch';
+
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
+
 
 const VERIFY_TOKEN = 'chatbot000111';
-const PAGE_ACCESS_TOKEN = [
-    "PAGE_TOKEN_1",
-    "PAGE_TOKEN_2"
-];
+const TableName = "demo_poc_nuviadi_facebook_page_id";
 
-const handleEvents = async (events, page_id) => {
+const client = new DynamoDBClient({});
+const dynamo = DynamoDBDocumentClient.from(client);
+
+const dynamoScanID = async (page_id) => {
+    try {
+        const command = new GetCommand({
+            TableName: TABLE_NAME_USER_PROFILE,
+            Key: {
+                PageID: page_id,
+            },
+        });
+        const userDetail = await dynamo.send(command);
+        return userDetail.Item.pageToken
+    } catch (err) {
+        return { status: false, desc: `error when get data => ${err}` }
+    }
+
+}
+
+const handleEvents = async (events, accessToken) => {
     const text = get(events, ['messaging', 0, 'message', 'text']);
     const sender = get(events, ['messaging', 0, 'sender', 'id']);
     if (!sender || !text) return;
@@ -46,8 +64,6 @@ const handleEvents = async (events, page_id) => {
             message: { text }
         };
     }
-
-    const accessToken = page_id === "642155692311378" ? PAGE_ACCESS_TOKEN[0] : PAGE_ACCESS_TOKEN[1];
 
     await fetch("https://graph.facebook.com/v6.0/me/messages", {
         method: 'POST',
@@ -91,7 +107,8 @@ export const handler = async (event) => {
         console.log(body.entry)
         if (body.object === 'page') {
             const entry = body.entry[0];
-            await handleEvents(entry, entry.id);
+            const accessToken = await dynamoScanID(entry.id)
+            await handleEvents(entry, accessToken);
         }
 
         return {
