@@ -14,7 +14,7 @@ const dynamo = DynamoDBDocumentClient.from(client);
 const dynamoScanID = async (page_id) => {
     try {
         const command = new GetCommand({
-            TableName: TABLE_NAME_USER_PROFILE,
+            TableName: TableName,
             Key: {
                 PageID: page_id,
             },
